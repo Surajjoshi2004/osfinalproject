@@ -80,20 +80,52 @@ def system_overview():
     col1.metric("💻 CPU Usage", f"{cpu_usage}%", delta=f"{'🔥 High' if cpu_usage > 70 else '🟢 Normal'}")
     col2.metric("🗄 Memory Usage", f"{memory.percent}%", delta=f"{'🚨 High' if memory.percent > 80 else '🟢 Normal'}")
 
-def visualize_processes(df):
-    if df is not None:
-        top_cpu = df.nlargest(5, 'CPU Usage')
-        top_mem = df.nlargest(5, 'Memory Usage')
-        
-        fig1 = px.bar(top_cpu, x='Process Name', y='CPU Usage', title='🔥 Top CPU Consuming Processes', color='CPU Usage')
-        fig2 = px.bar(top_mem, x='Process Name', y='Memory Usage', title='🗄 Top Memory Consuming Processes', color='Memory Usage')
-        
-        col1, col2 = st.columns(2)
-        col1.plotly_chart(fig1, use_container_width=True)
-        col2.plotly_chart(fig2, use_container_width=True)
 
-        pie_fig = px.pie(df, values='CPU Usage', names='Process Name', title='📊 CPU Usage Distribution')
-        st.plotly_chart(pie_fig, use_container_width=True)
+def visualize_processes(df):
+    if df is not None and not df.empty:
+        # Debugging: Show DataFrame to check values
+        st.write("### Debug: Process Data")
+        st.write(df)
+
+        # Convert to numeric in case of type issues
+        df["CPU Usage"] = pd.to_numeric(df["CPU Usage"], errors="coerce")
+        df["Memory Usage"] = pd.to_numeric(df["Memory Usage"], errors="coerce")
+
+        # Remove any NaN values (if conversion fails for some rows)
+        df = df.dropna(subset=["CPU Usage", "Memory Usage"])
+
+        # Get top 5 processes by CPU and Memory usage
+        top_cpu = df.nlargest(5, "CPU Usage")
+        top_mem = df.nlargest(5, "Memory Usage")
+
+        col1, col2 = st.columns(2)
+
+        # Plot CPU Usage Graph
+        if not top_cpu.empty:
+            fig1 = px.bar(top_cpu, x="Process Name", y="CPU Usage", 
+                          title="🔥 Top CPU Consuming Processes", 
+                          color="CPU Usage")
+            col1.plotly_chart(fig1, use_container_width=True)
+        else:
+            col1.warning("⚠️ No data available for CPU usage graph.")
+
+        # Plot Memory Usage Graph
+        if not top_mem.empty:
+            fig2 = px.bar(top_mem, x="Process Name", y="Memory Usage", 
+                          title="🗄 Top Memory Consuming Processes", 
+                          color="Memory Usage")
+            col2.plotly_chart(fig2, use_container_width=True)
+        else:
+            col2.warning("⚠️ No data available for Memory usage graph.")
+
+        # Pie Chart for CPU Usage Distribution
+        if not df.empty:
+            pie_fig = px.pie(df, values="CPU Usage", names="Process Name", title="📊 CPU Usage Distribution")
+            st.plotly_chart(pie_fig, use_container_width=True)
+        else:
+            st.warning("⚠️ No data available for pie chart.")
+    else:
+        st.warning("⚠️ No process data available.")
 
 def main():
     st.title("🔥 AI Task Manager")
