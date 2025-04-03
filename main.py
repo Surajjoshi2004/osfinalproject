@@ -1,19 +1,17 @@
-import streamlit as st  # Import Streamlit at the top
+import streamlit as st  
 import psutil
 import time
 import numpy as np
 import joblib
-import threading
 import pandas as pd
+import plotly.express as px
 from sklearn.ensemble import IsolationForest
 
-# Set page configuration at the very start
 st.set_page_config(page_title="AI Task Manager", layout="wide", initial_sidebar_state="expanded")
 
-# Function to collect training data
 def collect_training_data():
     process_data = []
-    for _ in range(10):  # Reduced iterations for faster startup
+    for _ in range(10):
         snapshot = []
         for p in psutil.process_iter(attrs=['pid', 'name', 'cpu_percent', 'memory_percent']):
             try:
@@ -29,7 +27,6 @@ def collect_training_data():
         clf.fit(process_array)
         joblib.dump(clf, 'anomaly_model.pkl')
 
-# Function to terminate a process
 def kill_process(pid):
     try:
         p = psutil.Process(pid)
@@ -38,7 +35,6 @@ def kill_process(pid):
     except Exception as e:
         st.error(f"Could not terminate process {pid}: {e}")
 
-# Function to monitor processes
 def monitor_system():
     try:
         clf = joblib.load('anomaly_model.pkl')  
@@ -63,10 +59,34 @@ def monitor_system():
         return df
     return None
 
-# Main UI
+def system_overview():
+    cpu_usage = psutil.cpu_percent()
+    memory = psutil.virtual_memory()
+    
+    col1, col2 = st.columns(2)
+    col1.metric("CPU Usage", f"{cpu_usage}%")
+    col2.metric("Memory Usage", f"{memory.percent}%")
+
+def visualize_processes(df):
+    if df is not None:
+        top_cpu = df.nlargest(5, 'CPU Usage')
+        top_mem = df.nlargest(5, 'Memory Usage')
+        
+        fig1 = px.bar(top_cpu, x='Process Name', y='CPU Usage', title='Top CPU Consuming Processes', color='CPU Usage')
+        fig2 = px.bar(top_mem, x='Process Name', y='Memory Usage', title='Top Memory Consuming Processes', color='Memory Usage')
+        
+        col1, col2 = st.columns(2)
+        col1.plotly_chart(fig1, use_container_width=True)
+        col2.plotly_chart(fig2, use_container_width=True)
+
+        pie_fig = px.pie(df, values='CPU Usage', names='Process Name', title='CPU Usage Distribution')
+        st.plotly_chart(pie_fig, use_container_width=True)
+
 def main():
     st.title("🔥 AI Task Manager")
     st.write("### Monitor and manage system processes in real-time with AI-driven anomaly detection.")
+    
+    system_overview()
     
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -81,6 +101,7 @@ def main():
     df = monitor_system()
     if df is not None:
         st.dataframe(df, height=400, use_container_width=True)
+        visualize_processes(df)
     else:
         st.warning("No process data available.")
     
