@@ -125,7 +125,7 @@ def main():
     
     if auto_refresh:
         time.sleep(5)
-        st.experimental_rerun()
+        st.rerun()
 
 if __name__ == "__main__":
     main()
