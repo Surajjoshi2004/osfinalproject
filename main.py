@@ -5,6 +5,7 @@ import numpy as np
 import joblib
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from sklearn.ensemble import IsolationForest
 
 st.set_page_config(page_title="🔥 AI Task Manager", layout="wide", initial_sidebar_state="expanded")
@@ -80,27 +81,37 @@ def system_overview():
     col1.metric("💻 CPU Usage", f"{cpu_usage}%", delta=f"{'🔥 High' if cpu_usage > 70 else '🟢 Normal'}")
     col2.metric("🗄 Memory Usage", f"{memory.percent}%", delta=f"{'🚨 High' if memory.percent > 80 else '🟢 Normal'}")
 
+def real_time_cpu_graph():
+    st.subheader("🔥 Real-Time CPU Monitoring")
+    cpu_chart = st.empty()  # Placeholder for dynamic graph
+
+    cpu_data = []
+
+    for _ in range(50):  # Collect data for 50 seconds
+        cpu_usage = psutil.cpu_percent(percpu=True)  # Get CPU usage per core
+        cpu_data.append(cpu_usage)
+
+        fig = go.Figure()
+        for i, core in enumerate(zip(*cpu_data)):
+            fig.add_trace(go.Scatter(y=core, mode='lines', name=f'CPU Core {i}'))
+
+        fig.update_layout(title="CPU Usage Over Time", xaxis_title="Time", yaxis_title="CPU %", height=400)
+        cpu_chart.plotly_chart(fig, use_container_width=True)
+
+        time.sleep(1)  # Update every second
 
 def visualize_processes(df):
     if df is not None and not df.empty:
-        # Debugging: Show DataFrame to check values
-        st.write("### Debug: Process Data")
-        st.write(df)
-
-        # Convert to numeric in case of type issues
         df["CPU Usage"] = pd.to_numeric(df["CPU Usage"], errors="coerce")
         df["Memory Usage"] = pd.to_numeric(df["Memory Usage"], errors="coerce")
 
-        # Remove any NaN values (if conversion fails for some rows)
         df = df.dropna(subset=["CPU Usage", "Memory Usage"])
 
-        # Get top 5 processes by CPU and Memory usage
         top_cpu = df.nlargest(5, "CPU Usage")
         top_mem = df.nlargest(5, "Memory Usage")
 
         col1, col2 = st.columns(2)
 
-        # Plot CPU Usage Graph
         if not top_cpu.empty:
             fig1 = px.bar(top_cpu, x="Process Name", y="CPU Usage", 
                           title="🔥 Top CPU Consuming Processes", 
@@ -109,7 +120,6 @@ def visualize_processes(df):
         else:
             col1.warning("⚠️ No data available for CPU usage graph.")
 
-        # Plot Memory Usage Graph
         if not top_mem.empty:
             fig2 = px.bar(top_mem, x="Process Name", y="Memory Usage", 
                           title="🗄 Top Memory Consuming Processes", 
@@ -118,7 +128,6 @@ def visualize_processes(df):
         else:
             col2.warning("⚠️ No data available for Memory usage graph.")
 
-        # Pie Chart for CPU Usage Distribution
         if not df.empty:
             pie_fig = px.pie(df, values="CPU Usage", names="Process Name", title="📊 CPU Usage Distribution")
             st.plotly_chart(pie_fig, use_container_width=True)
@@ -132,6 +141,7 @@ def main():
     st.write("### Monitor and manage system processes in real-time with AI-driven anomaly detection.")
     
     system_overview()
+    real_time_cpu_graph()  # 🔥 Added CPU Monitoring Graph
     
     col1, col2 = st.columns([2, 1])
     with col1:
